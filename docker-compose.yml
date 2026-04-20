@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+
+  # ─── Banco de dados ──────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: task-api-db
+    environment:
+      POSTGRES_DB: taskdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Aplicação ───────────────────────────────────────────────────────────
+  app:
+    build: .
+    container_name: task-api-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskdb
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+# ─── Como usar ──────────────────────────────────────────────────────────────
+#
+# Subir só o banco (para desenvolvimento local):
+#   docker-compose up -d postgres
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=postgres
+#
+# Subir tudo (app + banco):
+#   docker-compose up -d
+#
+# Ver logs:
+#   docker-compose logs -f app
+#
+# Parar tudo:
+#   docker-compose down
+#
+# Parar e apagar os dados:
+#   docker-compose down -v
