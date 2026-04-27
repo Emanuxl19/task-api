@@ -1,13 +1,16 @@
 package com.taskapi.service;
 
 import com.taskapi.dto.TaskDTO.*;
+import com.taskapi.entity.Role;
 import com.taskapi.entity.Task;
 import com.taskapi.exception.TaskNotFoundException;
 import com.taskapi.exception.UserNotFoundException;
 import com.taskapi.repository.TaskRepository;
 import com.taskapi.repository.UserRepository;
+import com.taskapi.security.auth.CustomUserDetails;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +29,12 @@ public class TaskService {
         this.userRepository = userRepository;
     }
 
-    // Paginação — essencial em qualquer API real
-    public Page<TaskResponse> findByUser(Long userId, Task.Status status,
-                                          Task.Priority priority, Pageable pageable) {
-        // Streams + pattern matching para decidir qual query executar
+    // Paginacao essencial em qualquer API real
+    public Page<TaskResponse> findByUser(CustomUserDetails currentUser, Long userId,
+                                         Task.Status status, Task.Priority priority,
+                                         Pageable pageable) {
+        validateUserAccess(currentUser, userId);
+
         if (status != null) {
             return taskRepository
                 .findByUserIdAndStatus(userId, status, pageable)
@@ -43,14 +48,14 @@ public class TaskService {
         return taskRepository.findByUserId(userId, pageable).map(TaskResponse::from);
     }
 
-    public TaskResponse findById(Long id) {
-        return taskRepository.findById(id)
-            .map(TaskResponse::from)
-            .orElseThrow(() -> new TaskNotFoundException(id));
+    public TaskResponse findById(CustomUserDetails currentUser, Long id) {
+        return TaskResponse.from(findAuthorizedTask(currentUser, id));
     }
 
-    // Tarefas vencidas — demonstra query customizada
-    public List<TaskResponse> findOverdue(Long userId) {
+    // Tarefas vencidas demonstram query customizada
+    public List<TaskResponse> findOverdue(CustomUserDetails currentUser, Long userId) {
+        validateUserAccess(currentUser, userId);
+
         return taskRepository.findOverdueTasks(userId, LocalDate.now())
             .stream()
             .map(TaskResponse::from)
@@ -58,7 +63,10 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskResponse create(Long userId, CreateTaskRequest request) {
+    public TaskResponse create(CustomUserDetails currentUser, Long userId,
+                               CreateTaskRequest request) {
+        validateUserAccess(currentUser, userId);
+
         var user = userRepository.findById(userId)
             .orElseThrow(() -> new UserNotFoundException(userId));
 
@@ -74,24 +82,54 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskResponse update(Long id, UpdateTaskRequest request) {
-        var task = taskRepository.findById(id)
-            .orElseThrow(() -> new TaskNotFoundException(id));
+    public TaskResponse update(CustomUserDetails currentUser, Long id,
+                               UpdateTaskRequest request) {
+        var task = findAuthorizedTask(currentUser, id);
 
-        if (request.title() != null)       task.setTitle(request.title());
-        if (request.description() != null) task.setDescription(request.description());
-        if (request.status() != null)      task.setStatus(request.status());
-        if (request.priority() != null)    task.setPriority(request.priority());
-        if (request.dueDate() != null)     task.setDueDate(request.dueDate());
+        if (request.title() != null) {
+            task.setTitle(request.title());
+        }
+        if (request.description() != null) {
+            task.setDescription(request.description());
+        }
+        if (request.status() != null) {
+            task.setStatus(request.status());
+        }
+        if (request.priority() != null) {
+            task.setPriority(request.priority());
+        }
+        if (request.dueDate() != null) {
+            task.setDueDate(request.dueDate());
+        }
 
         return TaskResponse.from(task);
     }
 
     @Transactional
-    public void delete(Long id) {
-        if (!taskRepository.existsById(id)) {
-            throw new TaskNotFoundException(id);
+    public void delete(CustomUserDetails currentUser, Long id) {
+        var task = findAuthorizedTask(currentUser, id);
+        taskRepository.delete(task);
+    }
+
+    private Task findAuthorizedTask(CustomUserDetails currentUser, Long taskId) {
+        var task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new TaskNotFoundException(taskId));
+
+        validateUserAccess(currentUser, task.getUser().getId());
+        return task;
+    }
+
+    private void validateUserAccess(CustomUserDetails currentUser, Long ownerId) {
+        if (isAdmin(currentUser)) {
+            return;
         }
-        taskRepository.deleteById(id);
+
+        if (!currentUser.getId().equals(ownerId)) {
+            throw new AccessDeniedException("You do not have permission to access this task");
+        }
+    }
+
+    private boolean isAdmin(CustomUserDetails currentUser) {
+        return currentUser.getUser().getRole() == Role.ADMIN;
     }
 }

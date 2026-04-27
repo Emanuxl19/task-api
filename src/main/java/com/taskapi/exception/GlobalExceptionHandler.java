@@ -1,7 +1,10 @@
 package com.taskapi.exception;
 
+import com.taskapi.ai.AiNotConfiguredException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +44,59 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
             .body(new ErrorResponse(ex.getMessage(), 409));
+    }
+
+    // ─── Erros de segurança ────────────────────────────────────────────────────
+
+    @ExceptionHandler(BadCredentialsException.class)
+    ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(new ErrorResponse("Invalid email or password", 401));
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(new ErrorResponse(ex.getMessage(), 401));
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    ResponseEntity<ErrorResponse> handleInvalidToken(InvalidTokenException ex) {
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(new ErrorResponse(ex.getMessage(), 401));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(new ErrorResponse("You do not have permission to access this resource", 403));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    ResponseEntity<ErrorResponse> handleRateLimit(RateLimitExceededException ex) {
+        return ResponseEntity
+            .status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(new ErrorResponse(ex.getMessage(), 429));
+    }
+
+    // ─── Erros de IA ──────────────────────────────────────────────────────────
+
+    @ExceptionHandler(AiNotConfiguredException.class)
+    ResponseEntity<ErrorResponse> handleAiNotConfigured(AiNotConfiguredException ex) {
+        return ResponseEntity
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(new ErrorResponse(ex.getMessage(), 503));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponse(ex.getMessage(), 400));
     }
 
     // ─── Erros de validação (@Valid) ─────────────────────────────────────────
