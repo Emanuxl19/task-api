@@ -19,6 +19,10 @@ This is a portfolio project focused on modern Java practices and professional-gr
 - Filtering by status and priority
 - Pagination and sorting
 - Overdue task detection
+- JWT authentication with refresh token rotation
+- Role-based authorization and row-level task access control
+- OAuth2 login with Google and GitHub
+- Request rate limiting for login, AI, and general API traffic
 - Global error handling with consistent error responses
 - Input validation
 - Interactive API docs (Swagger UI)
@@ -27,9 +31,9 @@ This is a portfolio project focused on modern Java practices and professional-gr
 
 ### Option 1 — H2 in-memory (no Docker needed)
 ```bash
-git clone https://github.com/your-username/task-api
+git clone https://github.com/Emanuxl19/task-api.git
 cd task-api
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Open http://localhost:8080/swagger-ui.html
@@ -37,7 +41,7 @@ Open http://localhost:8080/swagger-ui.html
 ### Option 2 — PostgreSQL with Docker Compose
 ```bash
 docker-compose up -d postgres
-./mvnw spring-boot:run -Dspring-boot.run.profiles=postgres
+mvn spring-boot:run -Dspring-boot.run.profiles=postgres
 ```
 
 ### Option 3 — Full stack (app + database)
@@ -70,16 +74,29 @@ GET /api/v1/users/1/tasks?priority=HIGH
 ## Running Tests
 
 ```bash
-# Unit tests only (no Docker required)
-./mvnw test -Dgroups="unit"
+# Full suite, including integration tests
+mvn test
 
-# All tests including integration (requires Docker)
-./mvnw test
+# Focus on one or more suites while developing
+mvn -Dtest=TaskServiceTest,AuthServiceTest test
 
 # With coverage report
-./mvnw verify
+mvn verify
 # Report at: target/site/jacoco/index.html
 ```
+
+Load and concurrency tests live in [load-tests/README.md](load-tests/README.md) and use `k6`.
+
+## Development Workflow
+
+- Contribution and release process: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Visual branch flow: [docs/workflow/git-workflow.md](docs/workflow/git-workflow.md)
+- Complete GitFlow guide: [docs/workflow/gitflow-guide.md](docs/workflow/gitflow-guide.md)
+- Load-testing guide: [load-tests/README.md](load-tests/README.md)
+- Pull request template and CI live under [.github](.github)
+- Kafka adoption notes: [docs/architecture/kafka.md](docs/architecture/kafka.md)
+
+The CI workflow runs `mvn verify` on GitHub Actions with Java 21 for pull requests into `main` and `develop`.
 
 ## Project Structure
 

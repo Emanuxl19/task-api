@@ -1,0 +1,9 @@
+# Default reviewers
+* @Emanuxl19
+
+# Sensitive areas
+/src/main/java/com/taskapi/security/ @Emanuxl19
+/src/main/java/com/taskapi/exception/ @Emanuxl19
+/pom.xml @Emanuxl19
+/docker-compose.yml @Emanuxl19
+/.github/ @Emanuxl19
