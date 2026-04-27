@@ -30,6 +30,37 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- ===== SECURITY ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- OAuth2 Client — Google + GitHub login -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
+        <!-- JWT — manual token handling -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- JPA + Hibernate -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -47,6 +78,12 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.5.0</version>
+        </dependency>
+
+        <!-- ===== CACHE / RATE LIMITING ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
         <!-- ===== BANCO ===== -->
@@ -70,6 +107,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
             <!-- Já inclui: JUnit 5, Mockito, AssertJ, MockMvc -->
+        </dependency>
+
+        <!-- Spring Security Test — @WithMockUser, SecurityMockMvc -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- Testcontainers — banco real nos testes de integração -->
@@ -97,7 +141,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
-                <version>1.19.8</version>
+                <version>1.21.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
