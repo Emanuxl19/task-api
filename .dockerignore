@@ -1,0 +1,22 @@
+# Build output
+target/
+
+# IDE / VCS
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Local config
+.env
+.env.*
+!.env.example
+
+# Docs and tooling that aren't needed in the image
+README.md
+CONTRIBUTING.md
+docs/
+load-tests/
+tools/
+docker-compose*.yml
