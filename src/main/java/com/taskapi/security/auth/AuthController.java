@@ -43,4 +43,11 @@ public class AuthController {
         authService.logout(request);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/oauth2/exchange")
+    @Operation(summary = "Exchange a one-time OAuth2 authorization code for tokens")
+    public ResponseEntity<TokenResponse> exchangeOAuth2Code(
+            @Valid @RequestBody OAuth2ExchangeRequest request) {
+        return ResponseEntity.ok(authService.exchangeOAuth2Code(request));
+    }
 }

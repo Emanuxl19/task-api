@@ -25,19 +25,23 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final OAuth2UserInfoExtractorFactory extractorFactory;
     private final UserRepository userRepository;
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
+    private final GitHubEmailFetcher gitHubEmailFetcher;
 
     @Autowired
     public CustomOAuth2UserService(OAuth2UserInfoExtractorFactory extractorFactory,
-                                   UserRepository userRepository) {
-        this(extractorFactory, userRepository, new DefaultOAuth2UserService());
+                                   UserRepository userRepository,
+                                   GitHubEmailFetcher gitHubEmailFetcher) {
+        this(extractorFactory, userRepository, new DefaultOAuth2UserService(), gitHubEmailFetcher);
     }
 
     CustomOAuth2UserService(OAuth2UserInfoExtractorFactory extractorFactory,
                             UserRepository userRepository,
-                            OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate) {
+                            OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate,
+                            GitHubEmailFetcher gitHubEmailFetcher) {
         this.extractorFactory = extractorFactory;
         this.userRepository = userRepository;
         this.delegate = delegate;
+        this.gitHubEmailFetcher = gitHubEmailFetcher;
     }
 
     @Override
@@ -46,6 +50,20 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         OAuth2User oauth2User = delegate.loadUser(userRequest);
         OAuth2UserInfoExtractor extractor = extractorFactory.getExtractor(registrationId);
         OAuth2UserInfoExtractor.OAuth2UserInfo userInfo = extractor.extract(oauth2User.getAttributes());
+
+        // GitHub returns email=null when the user keeps it private; fetch the
+        // primary verified address from /user/emails (user:email scope is
+        // already requested via application.properties).
+        if (userInfo.authProvider() == AuthProvider.GITHUB && isBlank(userInfo.email())) {
+            String fetchedEmail = gitHubEmailFetcher
+                .fetchPrimaryVerifiedEmail(userRequest.getAccessToken().getTokenValue())
+                .orElse(null);
+            if (fetchedEmail != null) {
+                userInfo = new OAuth2UserInfoExtractor.OAuth2UserInfo(
+                    userInfo.providerId(), fetchedEmail, userInfo.name(), userInfo.authProvider()
+                );
+            }
+        }
 
         validateUserInfo(userInfo);
 

@@ -39,6 +39,11 @@ public class AuthDTO {
         String refreshToken
     ) {}
 
+    public record OAuth2ExchangeRequest(
+        @NotBlank(message = "Code is required")
+        String code
+    ) {}
+
     public record TokenResponse(
         String accessToken,
         String refreshToken,
