@@ -29,3 +29,6 @@ ai-config.json
 # Logs
 *.log
 logs/
+
+# Load testing tools (k6 binaries — install locally, do not commit)
+tools/k6/
