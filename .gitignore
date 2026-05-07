@@ -22,6 +22,8 @@ application-secret.properties
 
 # Env
 .env
+ai-config.json
+~/.config/task-api/
 *.env
 
 # Logs
