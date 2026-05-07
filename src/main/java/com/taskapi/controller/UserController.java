@@ -39,7 +39,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get user by ID")
+    @Operation(summary = "Get user by ID (admin only — regular users should use /users/me)")
     public ResponseEntity<UserResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
     }

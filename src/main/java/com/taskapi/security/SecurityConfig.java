@@ -94,15 +94,15 @@ public class SecurityConfig {
                                  "/api-docs/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                // User management — admin only (registration goes through /auth/register)
+                // /users/me — any authenticated user can read their own profile
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/me").authenticated()
+                // User management — admin only (registration goes through /auth/register).
+                // GET /users/{id} is admin-only too: regular users must use /users/me.
                 .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/{id}").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/users").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/users/{id}").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/users/{id}").hasRole("ADMIN")
-                // /users/me — any authenticated user
-                .requestMatchers(HttpMethod.GET, "/api/v1/users/me").authenticated()
-                // /users/{id} — any authenticated user (service layer checks ownership)
-                .requestMatchers(HttpMethod.GET, "/api/v1/users/{id}").authenticated()
                 // All other requests need authentication
                 .anyRequest().authenticated()
             )
