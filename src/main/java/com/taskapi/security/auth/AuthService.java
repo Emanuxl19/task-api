@@ -9,6 +9,7 @@ import com.taskapi.repository.UserRepository;
 import com.taskapi.security.auth.AuthDTO.*;
 import com.taskapi.security.jwt.JwtProperties;
 import com.taskapi.security.jwt.JwtTokenProvider;
+import com.taskapi.security.oauth2.OAuth2AuthorizationCodeStore;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,19 +28,22 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final JwtProperties jwtProperties;
     private final AuthenticationManager authenticationManager;
+    private final OAuth2AuthorizationCodeStore oauth2CodeStore;
 
     public AuthService(UserRepository userRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        PasswordEncoder passwordEncoder,
                        JwtTokenProvider tokenProvider,
                        JwtProperties jwtProperties,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       OAuth2AuthorizationCodeStore oauth2CodeStore) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
         this.jwtProperties = jwtProperties;
         this.authenticationManager = authenticationManager;
+        this.oauth2CodeStore = oauth2CodeStore;
     }
 
     @Transactional
@@ -97,6 +101,19 @@ public class AuthService {
     public void logout(RefreshRequest request) {
         refreshTokenRepository.findByToken(request.refreshToken())
             .ifPresent(RefreshToken::revoke);
+    }
+
+    /**
+     * Exchanges a one-time OAuth2 authorization code (issued by the success
+     * handler after redirect) for the actual access/refresh token pair.
+     *
+     * Codes are single-use and expire in {@link OAuth2AuthorizationCodeStore#TTL}.
+     */
+    public TokenResponse exchangeOAuth2Code(OAuth2ExchangeRequest request) {
+        return oauth2CodeStore.consume(request.code())
+            .orElseThrow(() -> new InvalidTokenException(
+                "Invalid or expired OAuth2 authorization code"
+            ));
     }
 
     @Transactional

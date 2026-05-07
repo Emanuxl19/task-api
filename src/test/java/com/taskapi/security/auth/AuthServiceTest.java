@@ -10,6 +10,7 @@ import com.taskapi.repository.UserRepository;
 import com.taskapi.security.auth.AuthDTO.*;
 import com.taskapi.security.jwt.JwtProperties;
 import com.taskapi.security.jwt.JwtTokenProvider;
+import com.taskapi.security.oauth2.OAuth2AuthorizationCodeStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ class AuthServiceTest {
     @Mock JwtTokenProvider tokenProvider;
     @Mock JwtProperties jwtProperties;
     @Mock AuthenticationManager authenticationManager;
+    @Mock OAuth2AuthorizationCodeStore oauth2CodeStore;
 
     @InjectMocks AuthService authService;
 
@@ -250,6 +252,37 @@ class AuthServiceTest {
 
             assertThatCode(() -> authService.logout(request))
                 .doesNotThrowAnyException();
+        }
+    }
+
+    // ─── exchangeOAuth2Code ─────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("exchangeOAuth2Code()")
+    class ExchangeOAuth2Code {
+
+        @Test
+        @DisplayName("retorna os tokens armazenados quando o code e valido")
+        void shouldReturnStoredTokens() {
+            var stored = TokenResponse.of("access", "refresh", 900_000L);
+            var request = new OAuth2ExchangeRequest("valid-code");
+
+            when(oauth2CodeStore.consume("valid-code")).thenReturn(Optional.of(stored));
+
+            var result = authService.exchangeOAuth2Code(request);
+
+            assertThat(result).isSameAs(stored);
+        }
+
+        @Test
+        @DisplayName("lanca InvalidTokenException quando o code e desconhecido ou expirou")
+        void shouldThrowOnUnknownCode() {
+            var request = new OAuth2ExchangeRequest("unknown-code");
+            when(oauth2CodeStore.consume("unknown-code")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.exchangeOAuth2Code(request))
+                .isInstanceOf(InvalidTokenException.class)
+                .hasMessageContaining("authorization code");
         }
     }
 }

@@ -187,4 +187,54 @@ class AuthControllerTest {
                 .andExpect(status().isNoContent());
         }
     }
+
+    // ─── POST /api/v1/auth/oauth2/exchange ──────────────────────────────────
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/oauth2/exchange")
+    class OAuth2Exchange {
+
+        @Test
+        @DisplayName("retorna 200 com tokens quando o code e valido")
+        void shouldReturn200WithTokens() throws Exception {
+            var request = new OAuth2ExchangeRequest("valid-code");
+            var response = TokenResponse.of("access-token", "refresh-token", 900_000);
+
+            when(authService.exchangeOAuth2Code(any(OAuth2ExchangeRequest.class)))
+                .thenReturn(response);
+
+            mockMvc.perform(post("/api/v1/auth/oauth2/exchange")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token"));
+        }
+
+        @Test
+        @DisplayName("retorna 400 quando o code esta em branco")
+        void shouldReturn400WhenCodeBlank() throws Exception {
+            var request = new OAuth2ExchangeRequest("");
+
+            mockMvc.perform(post("/api/v1/auth/oauth2/exchange")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("retorna 401 quando o code e invalido ou expirou")
+        void shouldReturn401WhenCodeInvalid() throws Exception {
+            var request = new OAuth2ExchangeRequest("expired-code");
+
+            when(authService.exchangeOAuth2Code(any()))
+                .thenThrow(new InvalidTokenException("Invalid or expired OAuth2 authorization code"));
+
+            mockMvc.perform(post("/api/v1/auth/oauth2/exchange")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+        }
+    }
 }

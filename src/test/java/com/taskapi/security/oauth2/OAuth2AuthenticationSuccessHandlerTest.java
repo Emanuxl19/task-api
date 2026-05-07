@@ -43,14 +43,16 @@ class OAuth2AuthenticationSuccessHandlerTest {
         ));
 
     @Test
-    @DisplayName("redirects to the SPA with issued tokens")
-    void shouldRedirectToSpaWithTokens() throws Exception {
+    @DisplayName("redirects to the SPA with a one-time exchange code (no tokens in URL)")
+    void shouldRedirectToSpaWithExchangeCode() throws Exception {
         var properties = new OAuth2Properties("http://localhost:3000/oauth2/callback");
+        var codeStore = new OAuth2AuthorizationCodeStore();
         var handler = new OAuth2AuthenticationSuccessHandler(
             extractorFactory,
             userRepository,
             authService,
-            properties
+            properties,
+            codeStore
         );
 
         var user = makeUser(1L, "Ana", "ana@email.com", AuthProvider.GOOGLE, "google-1");
@@ -67,15 +69,22 @@ class OAuth2AuthenticationSuccessHandlerTest {
         var request = new MockHttpServletRequest();
         var response = new MockHttpServletResponse();
 
+        var issuedTokens = TokenResponse.of("access.token", "refresh-token", 900_000);
         when(userRepository.findByProviderIdAndAuthProvider("google-1", AuthProvider.GOOGLE))
             .thenReturn(Optional.of(user));
-        when(authService.issueTokens(user))
-            .thenReturn(TokenResponse.of("access.token", "refresh-token", 900_000));
+        when(authService.issueTokens(user)).thenReturn(issuedTokens);
 
         handler.onAuthenticationSuccess(request, response, authentication);
 
-        assertThat(response.getRedirectedUrl())
-            .isEqualTo("http://localhost:3000/oauth2/callback?accessToken=access.token&refreshToken=refresh-token&tokenType=Bearer&expiresIn=900");
+        String redirectUrl = response.getRedirectedUrl();
+        assertThat(redirectUrl).startsWith("http://localhost:3000/oauth2/callback?code=");
+        assertThat(redirectUrl)
+            .doesNotContain("accessToken=")
+            .doesNotContain("refreshToken=");
+
+        String code = redirectUrl.substring(redirectUrl.indexOf("?code=") + "?code=".length());
+        assertThat(codeStore.consume(code)).contains(issuedTokens);
+
         verify(authService).issueTokens(user);
     }
 

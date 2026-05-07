@@ -4,6 +4,7 @@ import com.taskapi.entity.AuthProvider;
 import com.taskapi.entity.Role;
 import com.taskapi.entity.User;
 import com.taskapi.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,11 +44,22 @@ class CustomOAuth2UserServiceTest {
     @Mock
     OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
 
+    @Mock
+    GitHubEmailFetcher gitHubEmailFetcher;
+
     private final OAuth2UserInfoExtractorFactory extractorFactory =
         new OAuth2UserInfoExtractorFactory(List.of(
             new GoogleUserInfoExtractor(),
             new GitHubUserInfoExtractor()
         ));
+
+    @BeforeEach
+    void setUp() {
+        // Default: GitHub /user/emails returns nothing. Tests that exercise
+        // the private-email fallback override this stub explicitly.
+        lenient().when(gitHubEmailFetcher.fetchPrimaryVerifiedEmail(any()))
+            .thenReturn(Optional.empty());
+    }
 
     @Nested
     @DisplayName("loadUser()")
@@ -55,7 +68,7 @@ class CustomOAuth2UserServiceTest {
         @Test
         @DisplayName("creates a new user when provider user is not found")
         void shouldCreateNewUser() {
-            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate);
+            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate, gitHubEmailFetcher);
             var request = oauth2UserRequest("google");
             var oauthUser = googleUser("google-1", "ana@email.com", "Ana");
             var savedUser = makeUser(1L, "Ana", "ana@email.com", AuthProvider.GOOGLE, "google-1");
@@ -78,7 +91,7 @@ class CustomOAuth2UserServiceTest {
         @Test
         @DisplayName("links an existing local user by email")
         void shouldLinkExistingLocalUser() {
-            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate);
+            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate, gitHubEmailFetcher);
             var request = oauth2UserRequest("github");
             var oauthUser = githubUser(42L, "bruno@email.com", "bruno-dev", null);
             var localUser = makeUser(2L, "Bruno", "bruno@email.com", AuthProvider.LOCAL, null);
@@ -99,7 +112,7 @@ class CustomOAuth2UserServiceTest {
         @Test
         @DisplayName("throws when account is already linked to another provider")
         void shouldThrowWhenAccountIsLinkedToAnotherProvider() {
-            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate);
+            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate, gitHubEmailFetcher);
             var request = oauth2UserRequest("github");
             var oauthUser = githubUser(42L, "ana@email.com", "ana-dev", "Ana");
             var googleUser = makeUser(3L, "Ana", "ana@email.com", AuthProvider.GOOGLE, "google-1");
@@ -117,7 +130,7 @@ class CustomOAuth2UserServiceTest {
         @Test
         @DisplayName("throws when provider does not return an email")
         void shouldThrowWhenEmailIsMissing() {
-            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate);
+            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate, gitHubEmailFetcher);
             var request = oauth2UserRequest("github");
 
             when(delegate.loadUser(request)).thenReturn(githubUser(42L, null, "bruno-dev", "Bruno"));
@@ -125,6 +138,28 @@ class CustomOAuth2UserServiceTest {
             assertThatThrownBy(() -> service.loadUser(request))
                 .isInstanceOf(OAuth2AuthenticationException.class)
                 .hasMessageContaining("Email");
+        }
+
+        @Test
+        @DisplayName("falls back to GitHub /user/emails when the public email is private")
+        void shouldFallBackToGitHubEmailsEndpoint() {
+            var service = new CustomOAuth2UserService(extractorFactory, userRepository, delegate, gitHubEmailFetcher);
+            var request = oauth2UserRequest("github");
+            var oauthUser = githubUser(42L, null, "bruno-dev", "Bruno");
+            var savedUser = makeUser(2L, "Bruno", "bruno@private.com", AuthProvider.GITHUB, "42");
+
+            when(delegate.loadUser(request)).thenReturn(oauthUser);
+            when(gitHubEmailFetcher.fetchPrimaryVerifiedEmail("access-token"))
+                .thenReturn(Optional.of("bruno@private.com"));
+            when(userRepository.findByProviderIdAndAuthProvider("42", AuthProvider.GITHUB))
+                .thenReturn(Optional.empty());
+            when(userRepository.findByEmail("bruno@private.com")).thenReturn(Optional.empty());
+            when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+            var result = service.loadUser(request);
+
+            assertThat((Long) result.getAttribute("appUserId")).isEqualTo(2L);
+            verify(gitHubEmailFetcher).fetchPrimaryVerifiedEmail("access-token");
         }
     }
 

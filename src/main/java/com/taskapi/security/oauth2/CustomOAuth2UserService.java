@@ -25,19 +25,23 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final OAuth2UserInfoExtractorFactory extractorFactory;
     private final UserRepository userRepository;
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
+    private final GitHubEmailFetcher gitHubEmailFetcher;
 
     @Autowired
     public CustomOAuth2UserService(OAuth2UserInfoExtractorFactory extractorFactory,
-                                   UserRepository userRepository) {
-        this(extractorFactory, userRepository, new DefaultOAuth2UserService());
+                                   UserRepository userRepository,
+                                   GitHubEmailFetcher gitHubEmailFetcher) {
+        this(extractorFactory, userRepository, new DefaultOAuth2UserService(), gitHubEmailFetcher);
     }
 
     CustomOAuth2UserService(OAuth2UserInfoExtractorFactory extractorFactory,
                             UserRepository userRepository,
-                            OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate) {
+                            OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate,
+                            GitHubEmailFetcher gitHubEmailFetcher) {
         this.extractorFactory = extractorFactory;
         this.userRepository = userRepository;
         this.delegate = delegate;
+        this.gitHubEmailFetcher = gitHubEmailFetcher;
     }
 
     @Override
@@ -45,7 +49,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         OAuth2User oauth2User = delegate.loadUser(userRequest);
         OAuth2UserInfoExtractor extractor = extractorFactory.getExtractor(registrationId);
-        OAuth2UserInfoExtractor.OAuth2UserInfo userInfo = extractor.extract(oauth2User.getAttributes());
+        OAuth2UserInfoExtractor.OAuth2UserInfo userInfo = resolveUserInfo(
+            extractor.extract(oauth2User.getAttributes()), userRequest);
 
         validateUserInfo(userInfo);
 
@@ -66,6 +71,21 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             buildAttributes(oauth2User.getAttributes(), user),
             extractor.nameAttributeKey()
         );
+    }
+
+    // GitHub returns email=null when the user keeps it private; fetch the
+    // primary verified address from /user/emails (user:email scope is
+    // already requested via application.properties).
+    private OAuth2UserInfoExtractor.OAuth2UserInfo resolveUserInfo(
+            OAuth2UserInfoExtractor.OAuth2UserInfo userInfo, OAuth2UserRequest userRequest) {
+        if (userInfo.authProvider() != AuthProvider.GITHUB || !isBlank(userInfo.email())) {
+            return userInfo;
+        }
+        return gitHubEmailFetcher
+            .fetchPrimaryVerifiedEmail(userRequest.getAccessToken().getTokenValue())
+            .map(email -> new OAuth2UserInfoExtractor.OAuth2UserInfo(
+                userInfo.providerId(), email, userInfo.name(), userInfo.authProvider()))
+            .orElse(userInfo);
     }
 
     private void validateUserInfo(OAuth2UserInfoExtractor.OAuth2UserInfo userInfo) {
