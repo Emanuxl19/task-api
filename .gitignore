@@ -22,8 +22,13 @@ application-secret.properties
 
 # Env
 .env
+ai-config.json
+~/.config/task-api/
 *.env
 
 # Logs
 *.log
 logs/
+
+# Load testing tools (k6 binaries — install locally, do not commit)
+tools/k6/

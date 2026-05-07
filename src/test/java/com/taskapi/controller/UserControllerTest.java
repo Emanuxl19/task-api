@@ -2,19 +2,25 @@ package com.taskapi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.taskapi.dto.UserDTO.*;
+import com.taskapi.entity.Role;
+import com.taskapi.entity.User;
 import com.taskapi.exception.EmailAlreadyExistsException;
 import com.taskapi.exception.GlobalExceptionHandler;
 import com.taskapi.exception.UserNotFoundException;
+import com.taskapi.security.auth.CustomUserDetails;
 import com.taskapi.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -37,7 +43,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - Validação de entrada (@Valid)
  * - Tratamento de erros (GlobalExceptionHandler)
  */
-@WebMvcTest({UserController.class, GlobalExceptionHandler.class})
+@WebMvcTest(
+    controllers = {UserController.class, GlobalExceptionHandler.class},
+    excludeAutoConfiguration = {SecurityAutoConfiguration.class, OAuth2ClientAutoConfiguration.class}
+)
 @DisplayName("UserController")
 class UserControllerTest {
 

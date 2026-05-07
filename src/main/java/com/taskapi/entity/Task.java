@@ -5,7 +5,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tasks")
+@Table(name = "tasks", indexes = {
+    @Index(name = "idx_task_user_status", columnList = "user_id, status"),
+    @Index(name = "idx_task_user_priority", columnList = "user_id, priority"),
+    @Index(name = "idx_task_user_due_date", columnList = "user_id, due_date, status"),
+    @Index(name = "idx_task_user_created", columnList = "user_id, created_at")
+})
 public class Task {
 
     // Sealed interface — Java 21 — modela os status possíveis de forma segura

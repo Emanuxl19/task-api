@@ -1,12 +1,15 @@
 package com.taskapi.controller;
 
 import com.taskapi.dto.UserDTO.*;
+import com.taskapi.security.auth.CustomUserDetails;
 import com.taskapi.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +23,13 @@ public class UserController {
 
     public UserController(UserService service) {
         this.service = service;
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get authenticated user profile")
+    public ResponseEntity<UserResponse> me(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(service.findById(currentUser.getId()));
     }
 
     @GetMapping
