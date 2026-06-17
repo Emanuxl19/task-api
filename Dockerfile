@@ -1,20 +1,17 @@
 # ─── Stage 1: build ─────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk-alpine AS build
+# Imagem oficial do Maven com JDK 21 — evita depender do Maven Wrapper.
+FROM maven:3.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
-# Copia o Maven wrapper e o pom.xml primeiro
-# (Docker cacheia essa camada se o pom.xml não mudar)
-COPY mvnw .
-COPY .mvn .mvn
+# Copia o pom.xml primeiro para cachear o download de dependências:
+# essa camada só é refeita quando o pom muda.
 COPY pom.xml .
+RUN mvn -B -ntp dependency:go-offline
 
-# Baixa dependências (camada cacheada separada do código)
-RUN ./mvnw dependency:resolve -q
-
-# Copia o código e compila
+# Copia o código e empacota.
 COPY src src
-RUN ./mvnw package -DskipTests -q
+RUN mvn -B -ntp package -DskipTests
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-alpine
